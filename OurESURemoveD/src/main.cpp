@@ -1,4 +1,5 @@
 //latest version
+// modified on Jun 26, 2016
 #include <stdio.h>
 #include <stdlib.h>
 #include <map>
@@ -15,8 +16,8 @@
 #define EPOC 10
 //#define Debug
 
-float THR = 0;
-
+float frequency_thr = 0;
+unsigned long long subgraph_THR = 0xffffffffffff;
 int* subgraphDegree;
 hash_map<char,int> AsciiToInt;
 hash_map<int,char> IntToAscii;
@@ -25,6 +26,7 @@ hash_map<std::string,long long int> graphInt;
 using namespace std;
 
 int subgraphSize = -1, num_random_graphs = 0;
+float subgraphDensity = 2;
 unsigned long long callNautyCount = 0;
 
 //g stores the input graph
@@ -35,7 +37,6 @@ Graph *g;
 bool isRand, directed;
 
 extern unsigned long enumerated_class;
-char ascii[61] = {'1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'};
 
 
 /****************************************************************
@@ -43,14 +44,17 @@ char ascii[61] = {'1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','g
 
 void print_usage (FILE * stream, int exit_code)
 {
-	fprintf (stream, "Usage: Kavosh options[inputfile...] \n ");
+	fprintf (stream, "Usage: OurESU options[inputfile...] \n ");
     fprintf (stream,
 		 "\t-h	--help\t\t\tDisplay this usage information. \n"
 		 "\t-i	--input filename\tInput filename.\n"
 		 "\t-o	--output path\t\tOutput directory.\n"
 		 "\t-r 	--random number \tNumber of random graphs (default = 0).\n"
 		 "\t-s 	--size motifsize \tMotif size.\n"
-		 "\t-u 	--undirected \tUndirected input network\n");
+		 "\t-u 	--undirected \tUndirected input network\n"
+		 "\t-l	--limit \tlimitation of Enumerated subgraphs\n"
+		 "\t-d	--density \tdensity of subgraph\n"
+		 "\t-t	--threshold \tthreshold of frequency\n");
 	     
     exit (exit_code);
 }
@@ -108,16 +112,21 @@ void Enumerate() {
 		printf("+ Exploring Node %d ...\n", v);
 #endif Debug
 
-		
+		// if(g->subgraphCounter >= 100)
+		// 	break;//useful
 
 		sub->subgraphSize = 1;
 		sub->lastVertex = sub->vertices[0] = v;
+
+		sub->currentEdgeNum = 0;// Tao add
 		
 		sub->visited[v] = true;
+		//cout << "Before Nexts, everything is OK"<<endl;
 		//g->Nexts(sub, subgraphSize, 0, g->quaT->root); 
 		g->Nexts(sub, subgraphSize, 0);
 
 		sub->visited[v] = false;
+		
 	}
 
 	delete sub;
@@ -127,7 +136,7 @@ void Enumerate() {
 std::string graphDegreeSequence(string adj, int subgraphSize)
 {
 
-    register int i, j, index;
+    register int i, j, index = 0;
     //int totalLength = adj.size();
     vector<int> degreeVec;
     for(i = 0; i<subgraphSize; i++)
@@ -135,16 +144,29 @@ std::string graphDegreeSequence(string adj, int subgraphSize)
 
 
 
+    // for(i = 0; i < subgraphSize; i++)
+    // {
+    //     for(j = i+1; j<subgraphSize; j++)
+    //     {
+    //     	index = j*(j-1)/2+i;
+    //         if(adj[index] == '1')
+    //         {
+    //             degreeVec[i] += 1;
+    //             degreeVec[j] += 1;
+    //         }
+    //         //index ++;
+    //     }
+    // }
     for(i = 0; i < subgraphSize; i++)
     {
         for(j = i+1; j<subgraphSize; j++)
         {
-            index = j*(j-1)/2 +i;
             if(adj[index] == '1')
             {
                 degreeVec[i] += 1;
                 degreeVec[j] += 1;
             }
+            index ++;
         }
     }
    
@@ -169,16 +191,29 @@ string calculateCam(string graphIn, int subgraphSize)
    
 
     register int i, j, index;
+    // for(i = 0; i < subgraphSize; i++)
+    // {
+    //     for (j = i+1; j<subgraphSize; j++)
+    //     {
+    //         index = j*(j-1)/2 +i;
+    //         if(graphIn[index] == '1')
+    //         {
+    //             tgraph[i*subgraphSize + j] = '1';
+    //             tgraph[j*subgraphSize + i] = '1';//undirected
+    //         }
+    //     }
+    // }
+    index = 0;
     for(i = 0; i < subgraphSize; i++)
     {
         for (j = i+1; j<subgraphSize; j++)
         {
-            index = j*(j-1)/2 +i;
             if(graphIn[index] == '1')
             {
                 tgraph[i*subgraphSize + j] = '1';
-                tgraph[j*subgraphSize + i] = '1';
+                tgraph[j*subgraphSize + i] = '1';//undirected
             }
+            index++;
         }
     }
 
@@ -208,33 +243,12 @@ string calculateCam(string graphIn, int subgraphSize)
         gv=GRAPHROW(g,v,m);
         EMPTYSET(gv,m);
         for(i=0; i<n; i++)
-            if(tgraph[v*subgraphSize+i] != '0')//here make sure that the graph is undirected!!!
+            if(tgraph[v*subgraphSize+i] != '0')//here make sure that the graph is undirected!!!no,depends on tgraph.
                 ADDELEMENT(gv,i);
-    }
+    }//initialize matrix g
 
-    /***Initial ptn and lab Add by wangtao on 1/7/2014***/
-    //assert(graphIn.size() == 2*edgeN + subgraphSize + 2);
-    //char Dnode1 = graphIn[2*edgeN + subgraphSize +1];
-    char Dnode1 = graphIn[graphIn.size()-1];
-
-    int lab_i = 0;
-    for(i = 0; i < subgraphSize; i++)
-    {
-        if(i != AsciiToInt[Dnode1])
-        {
-            lab[lab_i] = i;
-            lab_i ++;
-        }
-    }
-    lab[lab_i] = AsciiToInt[Dnode1];
-    for(i = 0; i< subgraphSize-2; i++)
-    {
-        ptn[i] = 1;
-    }
-    ptn[subgraphSize - 2] = 0;
-    ptn[subgraphSize - 1] = 0;
-    /**/
-
+   
+  
     nauty(g,lab,ptn,NILSET,orbits,&options,&stats,workspace,160*subgraphSize,m,n,canong);
     nCanCode = 0;
     k=0;
@@ -245,9 +259,9 @@ string calculateCam(string graphIn, int subgraphSize)
         {
             nCanCode = nCanCode<<1;
             nCanCode+=ISELEMENT(gv,j);
-            sCanCode[k++] = (char)(ISELEMENT(gv,j)+48);
+            sCanCode[k++] = (char)(ISELEMENT(gv,j)+48);//ascii(0) == 48
         }
-    }
+    }//output cam string
     sCanCode[k]='\0';
     string re = sCanCode;
     
@@ -258,25 +272,30 @@ string calculateCam(string graphIn, int subgraphSize)
 
 int main(int argc, char *argv[]) {
 
-	for (int ini = 0; ini < 9; ini++)
-    {
-        char temp = '1'+ini;
-        AsciiToInt[temp] = ini;
-        IntToAscii[ini] = temp;
-    }
-    for (int ini = 0; ini < 26; ini++)
-    {
-        char temp = 'a'+ini;
-        AsciiToInt[temp] = 9 + ini;
-        IntToAscii[9+ini] = temp;
-    }
-    for (int ini = 0; ini < 26; ini++)
-    {
-        char temp = 'A'+ini;
-        AsciiToInt[temp] = 35 + ini;
-        IntToAscii[35+ini] = temp;
-    }
-
+	// for (int ini = 0; ini < 9; ini++)
+ //    {
+ //        char temp = '1'+ini;
+ //        AsciiToInt[temp] = ini;
+ //        IntToAscii[ini] = temp;
+ //    }
+ //    for (int ini = 0; ini < 26; ini++)
+ //    {
+ //        char temp = 'a'+ini;
+ //        AsciiToInt[temp] = 9 + ini;
+ //        IntToAscii[9+ini] = temp;
+ //    }
+ //    for (int ini = 0; ini < 26; ini++)
+ //    {
+ //        char temp = 'A'+ini;
+ //        AsciiToInt[temp] = 35 + ini;
+ //        IntToAscii[35+ini] = temp;
+ //    }
+	for(int ini = 0; ini < 94; ini++)
+	{
+		char temp = '!' + ini;
+		AsciiToInt[temp] = ini;
+		IntToAscii[ini] = temp;
+	}
 
 
 	double total_random_time = 0 , main_time;
@@ -286,13 +305,16 @@ int main(int argc, char *argv[]) {
 	long long unsigned subgraphCounterMain;
 
 	int next_option;
-	const char *const short_options = "h:i:o:r:s:u";
+	const char *const short_options = "h:i:o:r:s:d:f:l:u";
 	const struct option long_options[] = {
 		{"help",   0, NULL, 'h'},
 		{"input",  1, NULL, 'i'},
 		{"output", 1, NULL, 'o'},
 		{"random", 1, NULL, 'r'},
 		{"size",   1, NULL, 's'},
+		{"density", 1, NULL, 'd'},
+		{"frequency", 1, NULL, 'f'},
+		{"limit", 1, NULL, 'l'},
 		{"undirected",   0, NULL, 'u'},
 		{NULL,     0, NULL,  0 }
 	};
@@ -315,7 +337,6 @@ int main(int argc, char *argv[]) {
 				strcpy(input_filename, optarg);
 	    		break;
 	    	
-
 			case 'o':
 				strcpy(output_directory, optarg);
 	    		break;
@@ -327,7 +348,15 @@ int main(int argc, char *argv[]) {
 			case 's':
 				subgraphSize = atoi(optarg);
 	    		break;
-
+	    	case 'd':
+	    		subgraphDensity = atof(optarg);
+	    		break;
+	    	case 'f':
+	    		frequency_thr = atof(optarg);
+	    		break;
+	    	case 'l':
+	    		subgraph_THR = atof(optarg);
+	    		break;
 			case 'u':
 				directed = false;
 	    		break;
@@ -342,7 +371,8 @@ int main(int argc, char *argv[]) {
                 print_usage (stderr, -1);
 		}
     } while (next_option != -1);
-
+    cout<<"subgraph_THR = " << subgraph_THR<<endl;
+    directed = false;//Tao 2016 Jun 25, only work on undirected graph now.
 
 	if (input_filename == NULL) {
 		fprintf(stderr, "Input Argument Error: Please specify an input filename using \"-i <FILE NAME>\".\n");
@@ -356,12 +386,13 @@ int main(int argc, char *argv[]) {
 	
 	printf("Motif Size: %d\n", subgraphSize);
 	printf("Input Graph: %s\n", input_filename);
-		
+	
 	if (!ReadData(input_filename))
 		return 0;
 
 	printf("ReadData Finished!!!\n");
-
+	cout<<"Nodes:"<<g->nV<<endl;
+	cout<<"Edges:"<<g->Edges()<<endl;
 	g->setPath(output_directory);
 
 	clock_t startTime = clock();
@@ -370,19 +401,22 @@ int main(int argc, char *argv[]) {
 	g->subgraphCounter = 0;
 	g->notClassSubCounter = 0;
 	clock_t mainStartTime = clock();
-	printf("before enumerate, everything is OK!\n");
+	//printf("before enumerate, everything is OK!\n");
 	Enumerate();
-	printf("after enumerate, everything is OK!!\n");
+
+	//printf("after enumerate, everything is OK!!\n");
 	clock_t mainEndTime = clock();
 
 	//hash_map<std::string, long long int> degreeSeqCount;
 	hash_map<string, pair< vector<const string*>, long long int> > degreeSeqPair;
 	hash_map<string, pair< vector<const string*>, long long int> >::iterator itor;
-
+	cout<<"graphIntSize = "<<graphInt.size()<<endl;
 	for(hash_map<std::string, long long int>::iterator it = graphInt.begin(); it!= graphInt.end(); it++)
 	{
 		const std::string *graphAdjMatStr = &(it->first);
+		//cout<< *graphAdjMatStr<<endl;
 		std::string graphDegSeq = graphDegreeSequence(*graphAdjMatStr, subgraphSize);
+		//cout<<"No problem"<<endl;
 		long long int tempCount = it->second;
 		
 		itor = degreeSeqPair.find(graphDegSeq);
@@ -403,11 +437,12 @@ int main(int argc, char *argv[]) {
 
 	}
 
+	//cout<<"still alive!"<<endl;
 
 	hash_map<string, long long int> finalGraph;
 	for(itor = degreeSeqPair.begin(); itor != degreeSeqPair.end(); itor++)
 	{
-		if((itor->second).second <= THR*(g->subgraphCounter) )
+		if((itor->second).second <= frequency_thr )
 		{
 			continue;
 		}

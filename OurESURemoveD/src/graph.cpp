@@ -7,8 +7,9 @@
 
 graph canon[MAXN * MAXM];
 extern int* subgraphDegree;
-extern bool* IsD;
-extern char ascii[];
+//extern bool* IsD;
+extern unsigned long long subgraph_THR;
+extern float subgraphDensity;
 int* treeChildrenSize;
 string* BFSVec;
 
@@ -25,7 +26,7 @@ unsigned long enumerated_class;
 FILE * o; 
 
 extern bool isRand;
-extern bool* IsD;
+//extern bool* IsD;
 extern unsigned long long callNautyCount;
 extern hash_map<std::string,long long int> graphInt;
 /****************************************************************
@@ -56,7 +57,7 @@ Subgraph::Subgraph(int subgraphSize, int maxSize, int graphSize) {//initialize =
 	visited = new bool[graphSize+1];
 	vertices = new unsigned int[maxSize];
 	children = new unsigned int[graphSize];
-
+	currentEdgeNum = 0;// Tao added 2016-1-19
 
 	for(int i = 0; i <= graphSize; i++)
 		visited[i] = false;
@@ -78,11 +79,19 @@ void Subgraph::AddChild(int vertex) {
 /****************************************************************
 This function is responsible for enumerating and partially classifying the subgraphs with 'quaT' (Quaternary Tree)
 ****************************************************************/
-void Graph::Nexts(Subgraph *sub, int maxSize, int startChild) {
+void Graph::Nexts(Subgraph *sub, int maxSize, int startChild) {//g->Nexts(sub, subgraphSize, 0);
+
+	//cout<<subgraphCounter<<endl;
+	if ((subgraph_THR != 0)&&(subgraphCounter >= subgraph_THR))
+	{
+		return;
+	}//useful
 	int *N;
-	N = getNeighbours(sub->lastVertex);
+	
+	N = getNeighbours(sub->lastVertex);//sub->lastVertex = sub->vertices[0] = v; for v in 1:154
 
 	int addedCounter = 0;
+	
 	for(int j = N[0]; j > 0; j--)
 	{
 		if(N[j] < sub->vertices[0])
@@ -90,18 +99,20 @@ void Graph::Nexts(Subgraph *sub, int maxSize, int startChild) {
 	
 		if(!sub->visited[N[j]]) {
 			sub->visited[N[j]] = true;
-			sub->AddChild(N[j]);
+			sub->AddChild(N[j]);//3 arrays: visited[154],vertices[4], children[154]
 			addedCounter++;
 		}
 	}
 
 	for(int c = startChild; c < sub->childCounter; c++)
 	{
+		
 		sub->lastVertex = sub->vertices[sub->subgraphSize] = sub->children[c];
 		sub->subgraphSize++;
-		
-		if(sub->subgraphSize == maxSize)
+
+		if((sub->subgraphSize == maxSize)&&(subgraphCounter < subgraph_THR))// useful
 		{
+
 			subgraphCounter++;
 			
 			int subEdgeNum = 0;
@@ -115,22 +126,16 @@ void Graph::Nexts(Subgraph *sub, int maxSize, int startChild) {
 					}
 				}
 			}
-			
-			if (float(subEdgeNum)/maxSize > 2)//Threshold should be defined by user here !!!
-				// we can set subgraph edge threshold = 2* maxSize, and keep an eye on the edge number while enumerating the subgraph.
-			{
-				continue;
-			}
 
 			if(subEdgeNum == -1)//if(subEdgeNum == maxSize -1)// if this subgraph is a tree
 			{
 				;
 			}
-			else
+			else if (float(subEdgeNum)/maxSize < subgraphDensity)//check graph density
 			{
 				//cout<<"I'm here, I'm alive!"<<endl;
 				std::string adjMatStr = GetAdjMatString(sub->vertices);
-				//cout<<adjMatStr;
+				//cout<<adjMatStr<<endl;
 				hash_map<std::string, long long int>::iterator iter = graphInt.find(adjMatStr);
 				if(iter == graphInt.end())
 				{
@@ -140,20 +145,22 @@ void Graph::Nexts(Subgraph *sub, int maxSize, int startChild) {
 				{
 					(iter->second) += 1;
 				}
-			}
+			}	
 
 		}
 		else
 			Nexts(sub, maxSize, c+1);
-
+	
 		sub->subgraphSize--;
 		sub->lastVertex = sub->vertices[subgraphSize-1];
+		
 	}
 
 	//Removing added children
 	for(int i = sub->childCounter - addedCounter; i < sub->childCounter; i++)
 		sub->visited[sub->children[i]] = false;
 	sub->childCounter -= addedCounter;
+
 }
 /****************************************************************
 ****************************************************************/
@@ -174,6 +181,7 @@ string Graph::GetAdjMatString(unsigned int* subVertices)// here, adjMatStr can b
 	}
 
 
+
 	for(i= 0; i < subgraphSize; i++)
 	{
 		for(j = i+1; j < subgraphSize; j++)
@@ -181,16 +189,30 @@ string Graph::GetAdjMatString(unsigned int* subVertices)// here, adjMatStr can b
 			if ( isConnected(tempSubgraph[i], tempSubgraph[j]) )
 			{
 				subgraphDegree[tempSubgraph[i]] += 1;
-				subgraphDegree[tempSubgraph[j]] += 1;
+				subgraphDegree[tempSubgraph[j]] += 1;//undirected!
 			}
 		}
 	}
 
-	qsort(tempSubgraph, subgraphSize, sizeof(tempSubgraph[0]), cmp);
-
-	for(i = 1; i < subgraphSize; i++)
+	qsort(tempSubgraph, subgraphSize, sizeof(tempSubgraph[0]), cmp);//smaller degree -> bigger degree
+	
+	// for(i = 1; i < subgraphSize; i++)
+	// {
+	// 	for(j = 0; j < i; j++)
+	// 	{
+	// 		if ( isConnected(tempSubgraph[i], tempSubgraph[j])  )
+	// 		{
+	// 			adjMatStr.push_back('1');
+	// 		}
+	// 		else
+	// 		{
+	// 			adjMatStr.push_back('0');
+	// 		}
+	// 	}
+	// }
+	for(i = 0; i < subgraphSize; i++)
 	{
-		for(j = 0; j < i; j++)
+		for(j = i+1; j < subgraphSize; j++)
 		{
 			if ( isConnected(tempSubgraph[i], tempSubgraph[j])  )
 			{
@@ -203,12 +225,7 @@ string Graph::GetAdjMatString(unsigned int* subVertices)// here, adjMatStr can b
 		}
 	}
 
-	// for (i = 0; i < subgraphSize; i++){
-		
-	//    if(IsD[tempSubgraph[i]])
-	// 	adjMatStr.push_back(ascii[i]);
-	// }
-	
+
 
 	return adjMatStr;
 }
@@ -239,14 +256,18 @@ Graph::Graph(const int n, int k) {
 	options.defaultptn = TRUE;//wangtao 2015-12-19
 	options.digraph = TRUE;
 	
+	// a char array for storing adjacent matrix
+	// rowSize indicates how many neighbours does a node maximaly have
 	rowSize = (int)ceil((float)nV/8);
 	adjMat = new char[rowSize*(nV+1)+1];
 	
+	// initialize each node's neighbour
 	for(i = 1; i <= nV; i++) {
 		for(j = 0; j <= (nV >> 3); j++) {
 			adjMat[i*rowSize + j] = 0;
 		}
-	}	
+	}
+		
 }
 
 /****************************************************************
@@ -383,16 +404,16 @@ void Graph::Finalize(bool directed) {
 	}
 	maxDegree = max;
 	
-	int *temp = new int[max+1];
-	for(int jj = 0; jj < max; jj++) {
-		temp[jj] = 0;	
-	}
+	// int *temp = new int[max+1];
+	// for(int jj = 0; jj < max; jj++) {
+	// 	temp[jj] = 0;	
+	// }
 	
-	for(int jj =0; jj < degs.size(); jj++) {
-		temp[degs[jj]]++;
-	}
+	// for(int jj =0; jj < degs.size(); jj++) {
+	// 	temp[degs[jj]]++;
+	// }
 
-    delete []temp;
+ //    delete []temp;
 
 	printf("Number of Nodes: %d\n", nV);
 	printf("Number of Edges: %d\n", nE);

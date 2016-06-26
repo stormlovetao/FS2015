@@ -10,7 +10,7 @@
 
 #define EPOC 10
 //#define Debug
-
+unsigned long long subgraph_THR = 0xffffffffffff;
 using namespace std;
 
 int subgraphSize = -1, num_random_graphs = 0;
@@ -107,14 +107,16 @@ int main(int argc, char *argv[]) {
 	long long unsigned subgraphCounterMain;
 	generator gen;
 	int next_option;
-	const char *const short_options = "h:i:o:r:s:u";
+	const char *const short_options = "h:i:o:r:s:l:u";
 	const struct option long_options[] = {
 		{"help",   0, NULL, 'h'},
 		{"input",  1, NULL, 'i'},
 		{"output", 1, NULL, 'o'},
 		{"random", 1, NULL, 'r'},
 		{"size",   1, NULL, 's'},
+		{"limit_enumerated_subgraphs", 1, NULL, 'l'},
 		{"undirected",   0, NULL, 'u'},
+
 		{NULL,     0, NULL,  0 }
 	};
 	
@@ -147,7 +149,9 @@ int main(int argc, char *argv[]) {
 			case 's':
 				subgraphSize = atoi(optarg);
 	    		break;
-
+	    	case 'l':
+	    		subgraph_THR = atof(optarg);
+	    		break;
 			case 'u':
 				directed = false;
 	    		break;

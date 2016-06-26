@@ -4,7 +4,7 @@
 
 graph canon[MAXN * MAXM];//graph=int, MAXN = 100, MAXM = 4;
 extern unsigned long long callNautyCount;
-
+extern unsigned long long subgraph_THR;
 static DEFAULTOPTIONS(options);
 statsblk(stats);
 setword workspace[160*MAXM];
@@ -76,7 +76,10 @@ This function is responsible for enumerating and partially classifying the subgr
 void Graph::Nexts(Subgraph *sub, int maxSize, int startChild, QNode* curNode) {
 	int *N;
 	N = getNeighbours(sub->lastVertex);
-
+	if ((subgraph_THR != 0)&&(subgraphCounter >= subgraph_THR))
+	{
+		return;
+	}//useful
 	int addedCounter = 0;
 	for(int j = N[0]; j > 0; j--)
 	{
@@ -127,7 +130,7 @@ void Graph::Nexts(Subgraph *sub, int maxSize, int startChild, QNode* curNode) {
 			}
 		}
 
-		if(sub->subgraphSize == maxSize)
+		if((sub->subgraphSize == maxSize)&&(subgraphCounter < subgraph_THR))// useful
 		{
 			subgraphCounter++;
 			quaT->Check();
