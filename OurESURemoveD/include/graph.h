@@ -19,6 +19,7 @@ public:
 	unsigned int lastVertex;
 	long childCounter;
 	int subgraphSize;
+	int currentEdgeNum; // Tao added 2016-1-19
 
 	void AddChild(int vertex);
 	Subgraph(int subgraphSize, int maxDegree, int graphSize);
