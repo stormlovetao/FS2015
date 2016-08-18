@@ -22,7 +22,7 @@ int* subgraphDegree;
 hash_map<char,int> AsciiToInt;
 hash_map<int,char> IntToAscii;
 hash_map<std::string,long long int> graphInt;
-
+hash_map<std::string,long long int> treeInt;
 using namespace std;
 
 int subgraphSize = -1, num_random_graphs = 0;
@@ -54,7 +54,7 @@ void print_usage (FILE * stream, int exit_code)
 		 "\t-u 	--undirected \tUndirected input network\n"
 		 "\t-l	--limit \tlimitation of Enumerated subgraphs\n"
 		 "\t-d	--density \tdensity of subgraph\n"
-		 "\t-t	--threshold \tthreshold of frequency\n");
+		 "\t-f	--threshold \tthreshold of frequency\n");
 	     
     exit (exit_code);
 }
@@ -465,8 +465,30 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	//count graph part
+	int graph_class = 0, tree_class = 0;
+	for(hash_map<std::string, long long int>::iterator it = finalGraph.begin(); it!= finalGraph.end(); it++)
+	{
+		if (it->second >= frequency_thr)
+		{
+			graph_class += 1;
+		}
+	}	
+
+	//count tree part
+	hash_map<string, long long int> finalTree;
+	for(hash_map<std::string, long long int>::iterator it = treeInt.begin(); it!= treeInt.end(); it++)
+	{
+		if (it->second >= frequency_thr)
+		{
+			tree_class += 1;
+			//cout<< it->first<<endl;
+		}
+	}
+
+
 	subgraphCounterMain = g->subgraphCounter;
-	enumerated_class = finalGraph.size();
+	enumerated_class = graph_class + tree_class;
 
 	
 	delete g;
@@ -481,7 +503,9 @@ int main(int argc, char *argv[]) {
 	
 	printf("\nMotif Size: %d\n", subgraphSize);
 	printf("\nTotal number of subgraphs in original network: %llu\n", subgraphCounterMain);
-	printf("Number of non-isomorphic classes: %lu\n", enumerated_class);
+	printf("Number of frequent non-isomorphic classes: %lu\n", enumerated_class);
+	printf("Number of frequent non-isomorphic graph classes: %lu\n", graph_class);
+	printf("Number of frequent non-isomorphic tree classes: %lu\n", tree_class);
 	printf("\nTime Used for Enumerate:      %f\n", main_time); 
 	
 	printf("\nTotal Time Used: %f\n", total_time); 

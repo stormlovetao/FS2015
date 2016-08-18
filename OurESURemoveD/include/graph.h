@@ -56,10 +56,9 @@ public:
 	int Size() { return nV; }
 	int Edges() { return nE; }
 	int MaxDegree() { return maxDegree; }
-	
-
-
+	std::string GetTreeString(unsigned int* subVertices);
 	std::string GetAdjMatString(unsigned int* subVertices);
+	std::string subGetTreeString(unsigned int* subVertices, int root, int rootInd );
 	
 
 	int M;

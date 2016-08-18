@@ -29,6 +29,7 @@ extern bool isRand;
 //extern bool* IsD;
 extern unsigned long long callNautyCount;
 extern hash_map<std::string,long long int> graphInt;
+extern hash_map<std::string,long long int> treeInt;
 /****************************************************************
 ****************************************************************/
 bool sortCmp(int i, int j) {
@@ -127,9 +128,28 @@ void Graph::Nexts(Subgraph *sub, int maxSize, int startChild) {//g->Nexts(sub, s
 				}
 			}
 
-			if(subEdgeNum == -1)//if(subEdgeNum == maxSize -1)// if this subgraph is a tree
+			if(subEdgeNum == maxSize -1)//if(subEdgeNum == maxSize -1)// if this subgraph is a tree
 			{
-				;
+				std::string treeStr = GetTreeString(sub->vertices);
+				// if (treeStr == "1<11<111>")
+				// {
+				// 	for (int i = 0; i < maxSize; ++i)
+				// 	{
+				// 		cout<< sub->vertices[i]<<" ";
+				// 	}
+				// 	cout<<endl;
+
+				// }
+				hash_map<std::string, long long int>::iterator iter = treeInt.find(treeStr);
+				if(iter == graphInt.end())
+				{
+					treeInt[treeStr] = 1;
+				}
+				else
+				{
+					(iter->second) += 1;
+				}
+				//cout<<"treeStr: "<< treeStr<<endl;
 			}
 			else if (float(subEdgeNum)/maxSize < subgraphDensity)//check graph density
 			{
@@ -162,6 +182,211 @@ void Graph::Nexts(Subgraph *sub, int maxSize, int startChild) {//g->Nexts(sub, s
 	sub->childCounter -= addedCounter;
 
 }
+/****************************************************************
+****************************************************************/
+string Graph::GetTreeString(unsigned int* subVertices)
+{
+	// cout<< "Entering: GetTreeString, subVertices: "<<endl;
+	// for (int i = 0; i < subgraphSize; ++i)
+	// {
+	// 	cout<<subVertices[i]<<" ";
+	// }
+	// cout<<endl;
+	//Find the root, o
+	
+	register int i,j;
+	int* tempSubgraph = new int[subgraphSize];
+	for (int i = 0; i < subgraphSize; ++i)
+	{
+		subgraphDegree[subVertices[i]] = 0;
+		tempSubgraph[i] = subVertices[i];
+	}
+	for(i= 0; i < subgraphSize; i++)
+	{
+		for(j = i+1; j < subgraphSize; j++)
+		{
+			if ( isConnected(tempSubgraph[i], tempSubgraph[j]) )
+			{
+				subgraphDegree[tempSubgraph[i]] += 1;
+				subgraphDegree[tempSubgraph[j]] += 1;//undirected!
+			}
+		}
+	}
+	int* subVerticesDegree =  new int[subgraphSize];
+	for (int i = 0; i < subgraphSize; ++i)
+	{
+		subVerticesDegree[i] = subgraphDegree[tempSubgraph[i]];
+		//cout<<subVerticesDegree[i]<<" ";
+	}
+	//cout<<endl;
+	int remainNum = subgraphSize;
+	int toDelNode;
+	while(remainNum>2)
+	{
+		std::vector<int> deleted_nodes;
+		for (int i = 0; i < subgraphSize; ++i)
+		{
+			if (subgraphDegree[tempSubgraph[i]] == 1 && tempSubgraph[i]!=-1 ) // leaf node with degree ==1
+			{
+				// remove tempSubgraph[i]
+				toDelNode = tempSubgraph[i];
+				tempSubgraph[i] = -1;
+				remainNum -= 1;
+				deleted_nodes.push_back(toDelNode);
+				subgraphDegree[toDelNode] = 0;
+			}
+		
+		}
+		//update the degree of remaining nodes
+		std::vector<int>::iterator it;
+		for (it = deleted_nodes.begin(); it < deleted_nodes.end(); ++it)
+		{
+			int deleted_node = *it;
+			//cout<<"d"<<deleted_node;
+			for (int i = 0; i < subgraphSize; ++i)
+			{
+				if (tempSubgraph[i]!=-1 && isConnected(tempSubgraph[i], deleted_node))
+				{
+					subgraphDegree[tempSubgraph[i]] -= 1;
+				}
+			}
+
+		}
+		//cout<<endl;
+		// for (int i = 1; i < subgraphSize+1; ++i)
+		// {
+		// 	cout<<subgraphDegree[i]<<"s ";
+		// 	/* code */
+		// }
+		// cout<<endl;
+	}
+	int root1 = -1, root2 = -1;
+	int root1Ind = -1, root2Ind = -1;
+	//cout<<"remainNum: "<<remainNum<<endl;
+	if (remainNum ==1 )
+	{
+		for (int i = 0; i < subgraphSize; ++i)
+		{
+			if (tempSubgraph[i]!=-1)
+			{
+				root1 = tempSubgraph[i];
+				root1Ind = i;
+			}
+		}
+	}
+	else if (remainNum ==2)
+	{
+		for (int i = 0; i < subgraphSize; ++i)
+		{
+			if (tempSubgraph[i]!=-1 && root1 == -1)
+			{
+				root1 = tempSubgraph[i];
+				root1Ind = i;
+			}
+			else if (tempSubgraph[i]!= -1 && root1 != -1)
+			{
+				root2 = tempSubgraph[i];
+				root2Ind = i;
+			}
+		}
+		if (subVerticesDegree[root1Ind] > subVerticesDegree[root2Ind]) // select root which has more children
+		{
+			root2 = -1;
+		}
+		else if (subVerticesDegree[root2Ind] > subVerticesDegree[root1Ind])
+		{
+			root1 = -1;
+		}
+
+	}
+
+
+	// cout<<"root1: " <<root1<<" root2: "<<root2<<endl;
+	// cout<<"root1Ind: " <<root1Ind<<" root2Ind: "<<root2Ind<<endl;
+
+	string outStr1 = ">", outStr2 = ">";
+	//Call Tree part, input a layered matrix, o as the root
+	if (root1 == -1 && root2 == -1)
+	{
+		cout<<"ERROR: root1 == -1 and root2 == -1"<<endl;
+		exit(1);
+	}
+	if (root1 != -1)
+	{
+		outStr1 = subGetTreeString(subVertices, root1, root1Ind);
+		
+	}
+	if (root2 != -1)
+	{
+		outStr2 = subGetTreeString(subVertices, root2, root2Ind);
+	}
+
+	delete [] tempSubgraph;
+
+	if (outStr1 <= outStr2)
+	{
+		return outStr1;
+	}
+	else
+	{
+		return outStr2;
+	}
+	
+}
+
+string Graph::subGetTreeString(unsigned int* subVertices, int root, int rootInd )
+{
+		
+		MyTree tree(subgraphSize);
+	
+		bool used[subgraphSize];
+		for(int i = 0; i< subgraphSize; i++)
+		{
+			used[i] = false;
+		}
+		list<int> queue;
+  		queue.push_back(1);//always transform the root as 1
+  		int lookup[subgraphSize+1];
+  		lookup[0] = 0;//no sense
+  		lookup[1] = root;
+  		used[rootInd] = true;// mark root as used, root's index is root1Ind
+  		int ind = 2; // other nodes coding from 2
+
+  		while(!queue.empty())
+  		{
+  			int k = queue.front();
+  			queue.pop_front();
+  			for (int i = 0; i < subgraphSize; ++i)
+  			{
+  				if (isConnected(lookup[k], subVertices[i]) && used[i]==false)
+  				{
+  					tree.addEdge(k, ind);
+  					queue.push_back(ind);
+  					used[i] = true;
+  					lookup[ind] = subVertices[i];
+  					ind++;
+  					
+  				}
+  			}
+
+  		}
+
+  		treeChildrenSize = new int[subgraphSize+1];
+  		for(int i = 1; i< subgraphSize +1; i++)
+		{
+		   treeChildrenSize[i] = tree.ChildrenNum(i);
+		}
+
+		BFSVec = new string[subgraphSize+1];
+		
+		string outStr = tree.TreeCamGen(subgraphSize); //tree1.TreeCamGen(int** subgraphTree, int level);
+		
+		delete [] BFSVec;
+		delete [] treeChildrenSize;
+		return outStr;
+}
+
+
 /****************************************************************
 ****************************************************************/
 int cmp(const void *a, const void *b )

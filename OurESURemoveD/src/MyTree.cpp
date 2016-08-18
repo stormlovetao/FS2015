@@ -8,13 +8,18 @@
 using namespace std;
 
 #define BFSLENGTH 64
- 
+
+extern int* treeChildrenSize;
+extern string* BFSVec;
+// int treeChildrenSize[] = {2,2,0,0,0};
+// string BFSVec[] = {"","","","",""};
+
+
 /***** 构造函数 *****/
 MyTree::MyTree(int V)
 {
   this->V = V;
   adj = new vector<int>[V+1];   // 初始化V+1条链表
-  
 }
 
 MyTree::~MyTree()
@@ -32,35 +37,7 @@ int MyTree::ChildrenNum(int v)
 {
   return adj[v].size();
 }  
-/* 从顶点v出发广度优先搜索 */
-/*
-void MyTree::BFS(int v)
-{
-  // BFS辅助队列
-  list<int> queue;
-  
-  
-  queue.push_back(v);
-  
-  list<int>::iterator i;
-  
-  while(!queue.empty())
-  {
-	// 出队
-	v = queue.front();
-	cout << v << " ";
-	queue.pop_front();
-  
-	// 检测已出队的顶点s的所有邻接顶点
-	
-	for(i = adj[v].begin(); i!=adj[v].end(); i++)
-	{
-	  
-		queue.push_back(*i);
-	   
-	}
-  }
-}*/
+
 
 string MyTree::BFString(int v, bool rootIsD )
 {
@@ -157,7 +134,115 @@ bool sortCmp1(int a, int b )
 
 bool sortCmp2(int a, int b)
 {
-  return BFSVec[a] > BFSVec[b];
+  return BFSVec[a] < BFSVec[b];
+}
+string MyTree::TreeCamGen(int subgraphSize)
+{
+	
+	// cout<<"Entering TreeCamGen, subgraphSize= "<<subgraphSize<<endl; 
+	// PrintTree(5);
+	int** subgraphtree;
+	subgraphtree = new int*[subgraphSize];
+	for (int i = 0; i < subgraphSize; ++i)
+	{
+		subgraphtree[i] = new int[subgraphSize+1];
+	}
+	// root node is labeled as 1
+	int root = 1;
+	
+	subgraphtree[0][0] = 1;// first level only contain the root, size = 1
+	subgraphtree[0][1] = root;
+	int level = 1;
+	int nextLevelCount = adj[root].size();
+	int* nextLevelNodes =  new int[subgraphSize];
+	int ind = 0;
+	for (vector<int>::iterator it = adj[root].begin(); it != adj[root].end(); it++)
+	{
+		nextLevelNodes[ind] = *it;
+		ind++;
+	}
+	
+	// for (int i = 0; i < nextLevelCount; ++i)
+	// {
+	// 	cout<<nextLevelNodes[i]<<" ";
+	// }
+	// cout<<endl;
+	while(nextLevelCount != 0)
+	{
+		subgraphtree[level][0] = nextLevelCount;
+		for (int i = 0; i < nextLevelCount; ++i)
+		{
+			subgraphtree[level][i+1] = nextLevelNodes[i]; // store nodes on LEVEL level+1, level starts from 0
+		}
+		
+		//update nextLevelNodes
+		nextLevelCount = 0;
+		for (int i = 0; i < subgraphtree[level][0]; ++i)
+		{
+			int tmpNode = subgraphtree[level][i+1];
+
+			for (vector<int>::iterator it = adj[tmpNode].begin(); it != adj[tmpNode].end(); it++)
+			{
+				nextLevelNodes[nextLevelCount] = *it;
+				nextLevelCount++;
+			}
+		}
+		level++;
+		
+	}
+	//cout<<"level = "<<level<<endl;
+	/**Tao add above on Aug14 2016**/
+
+
+
+	int i,j,k,curlevel,uplevel,parentNode;
+	for(curlevel = level-2; curlevel >= 1; curlevel--)
+	{
+		uplevel = curlevel-1;
+		for(i = 1; i<=subgraphtree[uplevel][0]; i++)
+		{
+		  	parentNode = subgraphtree[uplevel][i];
+			if (adj[parentNode].size() <= 1)
+			{
+				continue;
+			}
+
+			vector<int> childrenNumList;
+			int flag = 1;
+			for(vector<int>::iterator j = adj[parentNode].begin(); j != adj[parentNode].end(); j++)
+			{
+				int children_num = adj[*j].size();
+				if (find(childrenNumList.begin(), childrenNumList.end(), children_num) != childrenNumList.end())
+				{
+					flag = 0;
+					break;
+				}
+				else
+					childrenNumList.push_back(children_num);
+			}
+		  
+			if (flag==1)
+			{ 
+				sort(adj[parentNode].begin(), adj[parentNode].end(), sortCmp1);
+				continue;
+			}
+			else
+			{
+
+				//cout<< "dddd "<<parentNode<<endl;
+				TreeAdjust(parentNode);
+			} 
+		}
+
+	}
+	int rootNode = subgraphtree[0][1];
+	string outstr = BFString(rootNode);
+	for (int i = 0; i < subgraphSize; ++i)
+	{
+		delete [] subgraphtree[i];
+	}
+
+  	return outstr;
 }
 
 string MyTree::TreeCamGen(int** subgraphTree, int level)
@@ -220,10 +305,10 @@ void MyTree::TreeAdjust(int parentNode)
   sort(adj[parentNode].begin(), adj[parentNode].end(), sortCmp2);
   
 }
-
-
-
-
+int MyTree::TreeNodeNum()
+{
+	return this->V;
+} 
 
 void MyTree::PrintTree(int v)
 {
@@ -235,7 +320,7 @@ void MyTree::PrintTree(int v)
 	cout<<i<<": ";
 	for (iter = adj[i].begin(); iter!=adj[i].end(); iter++)
 	{
-	  cout<<*iter;
+	  cout<<*iter<<" ";
 	}
    
 	cout<<endl;

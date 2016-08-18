@@ -20,6 +20,7 @@ namespace   __gnu_cxx
 
 typedef  uint64_t uintx_t;
 
+
 /* 邻接表存储有向图 */
 class MyTree
 {
@@ -29,16 +30,12 @@ public:
   MyTree(int V);        // 构造函数
   ~MyTree();
   void addEdge(int v, int w); // 向图中添加一条边
-  //void BFS(int v);       // BFS遍历
-  std::string BFString(int v, bool isD);      
+  //void BFS(int v);       // BFS遍历     
   std::string BFString(int v);
   void PrintTree(int);
-  std::string TreeCamGen(int subgraphSize);
   std::string TreeCamGen(int** subgraphTree, int level);
   void TreeAdjust( int parentNode);
-  int TreeNodeNum();
   int ChildrenNum(int v);
-  
 
 };
 
